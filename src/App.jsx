@@ -7,7 +7,7 @@ import FileReceiver from './components/FileReceiver';
 import CameraScanner from './components/CameraScanner';
 import UseCasesShowcase from './components/UseCasesShowcase';
 import ShareAppModal from './components/ShareAppModal';
-
+import { compressChunk, isFormatCompressible } from './utils/compression';
 
 // Initialize Socket.io connection to signaling server
 const socket = io(window.location.origin, {
@@ -17,9 +17,11 @@ const socket = io(window.location.origin, {
 export default function App() {
   const [activeTab, setActiveTab] = useState('send'); // 'send', 'scan', 'use-cases'
   const [selectedFile, setSelectedFile] = useState(null);
+  const [useCompression, setUseCompression] = useState(true);
   const [roomId, setRoomId] = useState(null);
   const [peerStatus, setPeerStatus] = useState('waiting'); // 'waiting', 'connected', 'transferring', 'complete'
   const [transferProgress, setTransferProgress] = useState(0);
+
   
   // Direct receiver mode if URL contains #room=xyz
   const [directRoomId, setDirectRoomId] = useState(null);
@@ -112,14 +114,23 @@ export default function App() {
       reader.readAsArrayBuffer(slice);
     };
 
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       if (e.target.result) {
+        let chunkData = e.target.result;
+        let isCompressed = false;
+
+        if (useCompression) {
+          chunkData = await compressChunk(chunkData);
+          isCompressed = true;
+        }
+
         socket.emit('relay-chunk', {
           roomId: rId,
-          chunk: e.target.result,
+          chunk: chunkData,
           chunkIndex: currentChunk,
           totalChunks,
-          fileName: file.name
+          fileName: file.name,
+          compressed: isCompressed
         });
 
         currentChunk++;
@@ -129,13 +140,14 @@ export default function App() {
 
         if (currentChunk < totalChunks) {
           // Continue streaming next chunk
-          setTimeout(readNextChunk, 15);
+          setTimeout(readNextChunk, 10);
         }
       }
     };
 
     readNextChunk();
   };
+
 
   const handleResetSender = () => {
     setRoomId(null);
@@ -177,9 +189,12 @@ export default function App() {
               <FileUploader
                 selectedFile={selectedFile}
                 setSelectedFile={setSelectedFile}
+                useCompression={useCompression}
+                setUseCompression={setUseCompression}
                 onGenerateQR={handleGenerateQR}
               />
             ) : (
+
               <QRCodeDisplay
                 file={selectedFile}
                 roomId={roomId}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Download, FileCheck, CheckCircle2, Loader2, HardDrive, ShieldCheck, ArrowDownCircle, AlertCircle } from 'lucide-react';
+import { Download, FileCheck, CheckCircle2, Loader2, HardDrive, ShieldCheck, ArrowDownCircle, AlertCircle, Zap } from 'lucide-react';
+import { decompressChunk } from '../utils/compression';
 
 export default function FileReceiver({ socket, roomId }) {
   const [fileMeta, setFileMeta] = useState(null);
@@ -31,9 +32,15 @@ export default function FileReceiver({ socket, roomId }) {
     });
 
     // Receive direct chunk stream
-    socket.on('receive-chunk', ({ chunk, chunkIndex, totalChunks, fileName }) => {
+    socket.on('receive-chunk', async ({ chunk, chunkIndex, totalChunks, fileName, compressed }) => {
       setStatus('receiving');
-      receivedChunks.current.push(chunk);
+
+      let processChunk = chunk;
+      if (compressed) {
+        processChunk = await decompressChunk(chunk);
+      }
+
+      receivedChunks.current.push(processChunk);
       
       const pct = Math.round(((chunkIndex + 1) / totalChunks) * 100);
       setProgress(pct);
@@ -46,6 +53,7 @@ export default function FileReceiver({ socket, roomId }) {
         assembleFile(metaTypeFromFilename(fileName));
       }
     });
+
 
     socket.on('peer-disconnected', () => {
       if (status !== 'ready') {

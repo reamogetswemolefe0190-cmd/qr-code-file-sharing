@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { Upload, FileText, Image as ImageIcon, Video, Music, Archive, CheckCircle2, ShieldCheck, HardDrive } from 'lucide-react';
+import { Upload, FileText, Image as ImageIcon, Video, Music, Archive, CheckCircle2, ShieldCheck, HardDrive, Zap } from 'lucide-react';
+import { isFormatCompressible } from '../utils/compression';
 
-export default function FileUploader({ selectedFile, setSelectedFile, onGenerateQR }) {
+export default function FileUploader({ selectedFile, setSelectedFile, useCompression, setUseCompression, onGenerateQR }) {
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -12,6 +13,7 @@ export default function FileUploader({ selectedFile, setSelectedFile, onGenerate
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
+
 
   const getFileIcon = (file) => {
     if (!file) return <FileText size={32} color="var(--primary-light)" />;
@@ -121,7 +123,7 @@ export default function FileUploader({ selectedFile, setSelectedFile, onGenerate
         display: 'grid',
         gridTemplateColumns: '1fr 1fr',
         gap: '12px',
-        margin: '24px 0',
+        margin: '20px 0 16px',
         padding: '12px 16px',
         background: 'rgba(15, 23, 42, 0.4)',
         borderRadius: '12px',
@@ -137,7 +139,62 @@ export default function FileUploader({ selectedFile, setSelectedFile, onGenerate
         </div>
       </div>
 
+      {/* Turbo Lossless Compression Toggle */}
+      <div style={{
+        padding: '12px 16px',
+        background: useCompression ? 'rgba(6, 182, 212, 0.12)' : 'rgba(15, 23, 42, 0.4)',
+        borderRadius: '12px',
+        border: useCompression ? '1px solid var(--accent-cyan)' : '1px solid var(--border-glass)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: '24px',
+        transition: 'all 0.25s ease'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Zap size={18} color={useCompression ? 'var(--accent-cyan)' : 'var(--text-dim)'} />
+          <div>
+            <div style={{ fontSize: '0.88rem', fontWeight: '600', color: useCompression ? '#fff' : 'var(--text-muted)' }}>
+              Lossless Turbo-Compression (GZIP)
+            </div>
+            <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)' }}>
+              Speeds up transfer up to 80% with 0% quality loss
+            </div>
+          </div>
+        </div>
+
+        <label style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={useCompression}
+            onChange={(e) => setUseCompression(e.target.checked)}
+            style={{ opacity: 0, width: 0, height: 0 }}
+          />
+          <span style={{
+            position: 'absolute',
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: useCompression ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.2)',
+            borderRadius: '24px',
+            transition: '0.25s'
+          }}>
+            <span style={{
+              position: 'absolute',
+              content: '""',
+              height: '18px',
+              width: '18px',
+              left: useCompression ? '22px' : '3px',
+              bottom: '3px',
+              backgroundColor: '#white',
+              borderRadius: '50%',
+              background: '#fff',
+              transition: '0.25s'
+            }} />
+          </span>
+        </label>
+      </div>
+
       {/* Action Button */}
+
       <button
         onClick={onGenerateQR}
         disabled={!selectedFile}
